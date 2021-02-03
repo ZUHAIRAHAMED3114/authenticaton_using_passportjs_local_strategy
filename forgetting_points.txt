@@ -1,0 +1,306 @@
+understand the include keyword for the ejs view engine
+===========================================================
+how to include through relative path vs absolute somePath
+
+to include through relative path as follows
+absolute path use include('/partials/messages')
+                    how  it will processed as  path.join(__directory,includedpathfile)
+
+to include relative path as follows
+
+        include ./paritals/messages.ejs
+
+
+
+Includes either have to be an absolute path, or, if not, are assumed as relative
+ to the template with the include call. For example if you are including ./views/user/show.ejs
+  from ./views/users.ejs you would use <%- include('user/show') %>.
+
+You must specify the filename option for the template with the include call unless
+ you are using renderFile().
+
+You'll likely want to use the raw output tag (<%-) with your include to avoid 
+double-escaping the HTML output.
+
+<ul>
+  <% users.forEach(function(user){ %>
+    <%- include('user/show', {user: user}) %>
+  <% }); %>
+</ul>
+
+
+Includes are inserted at runtime, so you can use variables for the path in the
+ include call (for example <%- include(somePath) %>). Variables in your top-level 
+ data object are available to all your includes, but local variables need to be passed down.
+
+NOTE: Include preprocessor directives (<% include user/show %>) are not supported in v3.0+.
+
+
+regarding the flash message data
+=======>======>======>====>===>
+similarly  understand the flow of the flash message data    
+and how many request this data is to be saved for the particulare session
+and where this  message data is to be saved in the browser and the server etc..,
+
+ to depth study regarding this topic  see the below link
+ 
+// search in the given link https://gist.github.com/brianmacarthur/a4e3e0093d368aa8e423
+/**
+ * The express-flash module exposes getter and setter methods for a flash message of the form,
+ *  { flash: { type: 'type', message: 'message' }} and depends on the express-session module.
+ *  The method req.flash(type, message) sets the value of a new flash message and adds it to 
+ *  an array of messages of the same type
+ * 
+ * gettin the value from the flash as follows 
+ * The method req.flash(type) gets the value of all flash messages matching of the same type 
+ * and returns either a string value for the message if there is only 1 of that type, or an 
+ * array of string values for messages matching that type. The flash messages have a lifetime 
+ * of one request and are deleted afterward.
+ * 
+ */
+
+understand the local-strategy for login
+========================================
+1)Username & Password
+----------------------
+The most widely used way for websites to authenticate users is via a username and password. 
+Support for this mechanism is provided by the passport-local module.
+
+
+2) Configuration
+------------------
+   after installin the passport-local strateghy 
+   
+    functon LocalStrategy(param1,param2,param3,...arg){
+         this method is a construcutor 
+          b/z it uses 
+          this keyword
+          as well as return the  request-handler
+          so whatever the handler// i.e is like middleware to the passport.js module
+          return by this LocalStrategy() method is to be
+         used by the Passoposrt
+    }
+
+passport.use(new LocalStrategy(
+  function(username, password, done) {
+    User.findOne({ username: username }, function(err, user) {
+      if (err) { return done(err); }
+      if (!user) {
+        return done(null, false, { message: 'Incorrect username.' });
+      }
+      if (!user.validPassword(password)) {
+        return done(null, false, { message: 'Incorrect password.' });
+      }
+      return done(null, user);
+    });
+  }
+));
+
+
+note:-> in our application we are using not only local strategy but also
+different strategy i.e why we are kept the passportjs with local startegy in the 
+  seperate file...
+
+  which export functoin 
+  
+function assigning_the_local_strategy(passport){
+    passport.use(new LocalStrategy(
+    function(username, password, done) {
+    User.findOne({ username: username }, function(err, user) {
+      if (err) { return done(err); }
+      if (!user) {
+        return done(null, false, { message: 'Incorrect username.' });
+      }
+      if (!user.validPassword(password)) {
+        return done(null, false, { message: 'Incorrect password.' });
+      }
+      return done(null, user);
+    });
+  }
+));
+
+   }
+
+form
+====
+
+<form action="/login" method="post">
+    <div>
+        <label>Username:</label>
+        <input type="text" name="username"/>
+    </div>
+    <div>
+        <label>Password:</label>
+        <input type="password" name="password"/>
+    </div>
+    <div>
+        <input type="submit" value="Log In"/>
+    </div>
+</form>
+
+
+Route
+=====
+The login form is submitted to the server via the POST method. 
+Using authenticate() with the local strategy will handle the login request.
+
+app.post('/login',
+  passport.authenticate('local', { successRedirect: '/',
+                                   failureRedirect: '/login',
+                                   failureFlash: true })
+);
+Setting the failureFlash option to true instructs Passport to flash an error message 
+using the message option set by the verify callback above. This is helpful when prompting
+ the user to try again.
+
+
+ note passport.authenticate method will return the request handler 
+ which take the request as input and response as output...,
+
+ app.post('/login'
+           ,(passport.authenticate())
+          ,(req,res,next)=>{}
+          ,(req,res,next)=>{},(req,res)=>{}).
+
+
+
+PARAMETER
+========
+by default local strategy is expected to find the credential 
+in the parameters named as 
+  1)username
+  2)password
+
+if my site is prefer to name these fields are differently
+then options are available 
+
+..................................................
+ passport.use(new LocalStrategy({
+     usernameFeild:'email',
+     passwordFeild:'mypassword'
+ },function(email,mypassowrd,done)))
+...................................................
+normally it as follows 
+
+passport.use(
+            new LocalStrategy({},
+                            function(username,password,done)
+                            {
+
+                            });
+   )
+
+
+
+
+
+
+serializing the data and sending the session-id to the browser 
+==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>==>
+
+
+In a typical web application, the credentials used to authenticate a user will only be
+transmitted during the login request. If authentication succeeds, a session will be established 
+and maintained via a cookie set in the user's browser.
+
+Each subsequent request will not contain credentials, but rather the unique cookie that
+ identifies the session. In order to support login sessions, Passport will serialize and
+  deserialize user instances to and from the session.
+
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
+In this example, only the user ID is serialized to the session, keeping the amount of data 
+stored within the session small. When subsequent requests are received, this ID is used to 
+find the user, which will be restored to req.user.
+
+The serialization and deserialization logic is supplied by the application, allowing the 
+application to choose an appropriate database and/or object mapper, without imposition by
+ the authentication layer.
+
+
+===============================================================
+in order to run the above serialize and deserailize the object
+which is sendig to the browser throgh set-cookie header   and 
+recieving from the browser and through the cookie header toward the
+server and then finally deserializes...
+
+ so out app must use following midddleware like
+ session 
+ cookie
+
+
+ app.use(passport.initialize());
+app.use(passport.session());
+
+note it is important 
+that this middleware is to be put after the Express sesion middleware
+
+var session = require("express-session"),
+    bodyParser = require("body-parser");
+
+app.use(express.static("public"));
+app.use(session({ secret: "cats" }));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+===================================================
+
+
+understand the control flow of the login for 
+
+router.post('/login', (req, res, next) => {
+
+    console.log('login is completed now we have to implement the redirect page');
+    passport.authenticate('local', {
+        successRedirect: '/dashboard',
+        failureRedirect: '/user/login',
+        failureFlash: true
+    })(req, res, next);
+
+})
+
+after login form is fired 
+now ->
+      through authenticate() method closure
+        got the succes :-> redirect and 
+                failure :-> redirect  
+
+            after getting this above two  value 
+            now middleware is fired 
+             in whihc next :-> is supplied to the 
+             another function which i  another midddleware
+
+    -> that middleware is we only declared in the 
+       passport.use( new Localstartegy())
+
+         this new LocalStrategy() take main component is 
+
+         function(username,password,don){
+
+           }
+
+       this above function is invoked during the 
+      verificaion phase of the login form :->
+     so this function is raised in hte 
+
+    -->       
+
+  that above function will be faired during 
+  login form where router.post('logine',()=>{}(req,res,next))
+  in  the next -> sending  that funciton which are defined 
+  in the LocalStrategy-> callback functon ....
+
+
+        passport.use(new LocalStrategy({
+     usernameFeild:'email',
+     passwordFeild:'mypassword'
+ },function(email,mypassowrd,done){}))
+
+
